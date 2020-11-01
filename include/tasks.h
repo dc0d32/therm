@@ -24,7 +24,7 @@ class scheduler
 
     int find_task(void *func, int id)
     {
-        for (size_t i = 0; i < num_tasks; i++)
+        for (int i = 0; i < num_tasks; i++)
         {
             if (tasks[i].id == id && tasks[i].func_ptr == func)
             {
@@ -169,7 +169,7 @@ public:
         unsigned long ts = get_ts();
         // Serial.printf("(%d) check run, total = %d\n", ts, num_tasks);
         int num_tasks_run = 0;
-        for (size_t task_idx = 0; task_idx < num_tasks; task_idx++)
+        for (int task_idx = 0; task_idx < num_tasks; task_idx++)
         {
             auto task = tasks[task_idx];
             if (task.next_ts <= ts)

@@ -19,26 +19,7 @@ scheduler sched(8); // 'task' scheduler
 DHT_Unified dht_sensor(DHT11_PIN, DHT11); // DHT temp sensor (adafruit library)
 bool presence_detection_status = false;
 
-void setup()
-{
 
-  pinMode(RELAY0_PIN, OUTPUT);
-  pinMode(RELAY1_PIN, OUTPUT);
-
-  Serial.begin(115200);
-  // delay(2000);
-
-  setup_dht();
-  setup_presence_detection();
-}
-
-void setup_dht()
-{
-  // Initialize device.
-  dht_sensor.begin();
-
-  sched.add_or_update_task((void *)&dht11_sensor_read_task, 0, NULL, 1, 2000, 0 /*5000*/);
-}
 
 void dht11_sensor_read_task(void *)
 {
@@ -68,11 +49,22 @@ void dht11_sensor_read_task(void *)
     Serial.println(F("%"));
   }
 }
-
-void setup_presence_detection()
+void setup_dht()
 {
-  pinMode(RCWL0516_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(RCWL0516_PIN), presence_detection_task, RISING);
+  // Initialize device.
+  dht_sensor.begin();
+
+  sched.add_or_update_task((void *)&dht11_sensor_read_task, 0, NULL, 1, 2000, 0 /*5000*/);
+}
+
+
+
+
+void presence_detection_timeout_task(void *)
+{
+  Serial.println(F("--- idle for too long"));
+  digitalWrite(RELAY0_PIN, LOW);
+  presence_detection_status = false;
 }
 
 ICACHE_RAM_ATTR void presence_detection_task()
@@ -82,12 +74,27 @@ ICACHE_RAM_ATTR void presence_detection_task()
   sched.add_or_update_task((void *)&presence_detection_timeout_task, 0, NULL, 1, 0, 10000 /*15 * 60 * 1000*/); // 15 min delay, not periodic
 }
 
-void presence_detection_timeout_task(void *)
+void setup_presence_detection()
 {
-  Serial.println(F("--- idle for too long"));
-  digitalWrite(RELAY0_PIN, LOW);
-  presence_detection_status = false;
+  pinMode(RCWL0516_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(RCWL0516_PIN), presence_detection_task, RISING);
 }
+
+
+
+void setup()
+{
+
+  pinMode(RELAY0_PIN, OUTPUT);
+  pinMode(RELAY1_PIN, OUTPUT);
+
+  Serial.begin(9600);
+  // delay(2000);
+
+  setup_dht();
+  setup_presence_detection();
+}
+
 
 void loop()
 {
