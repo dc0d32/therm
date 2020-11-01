@@ -96,7 +96,7 @@ class scheduler
 
     bool remove_task(int task_idx)
     {
-        if (task_idx >= 0 && task_idx < num_tasks - 1)
+        if (task_idx >= 0 && task_idx < num_tasks)
         {
             memmove(&tasks[task_idx], &tasks[task_idx + 1], (num_tasks - task_idx - 1) * sizeof(task_t));
             --num_tasks;
@@ -167,7 +167,7 @@ public:
     void run(int notask_delay)
     {
         unsigned long ts = get_ts();
-        // Serial.printf("(%d) check run\n", ts);
+        // Serial.printf("(%d) check run, total = %d\n", ts, num_tasks);
         int num_tasks_run = 0;
         for (size_t task_idx = 0; task_idx < num_tasks; task_idx++)
         {
