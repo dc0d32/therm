@@ -1,29 +1,32 @@
+// AUTOMATICALLY GENERATED FILE. PLEASE DO NOT MODIFY IT MANUALLY
+
+// PIO Unified Debugger
+//
+// Documentation: https://docs.platformio.org/page/plus/debugging.html
+// Configuration: https://docs.platformio.org/page/projectconf/section_env_debug.html
+
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "avr-gcc.exe - Build and debug active file",
-            "type": "cppdbg",
+            "type": "platformio-debug",
             "request": "launch",
-            "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "\\usr\\bin\\gdb.exe",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: avr-gcc.exe build active file"
+            "name": "PIO Debug",
+            "executable": "c:/code/Therm/.pio/build/wemos_d1_mini32/firmware.elf",
+            "toolchainBinDir": "C:/Users/prborole/.platformio/packages/toolchain-xtensa32/bin",
+            "preLaunchTask": {
+                "type": "PlatformIO",
+                "task": "Pre-Debug"
+            },
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "platformio-debug",
+            "request": "launch",
+            "name": "PIO Debug (skip Pre-Debug)",
+            "executable": "c:/code/Therm/.pio/build/wemos_d1_mini32/firmware.elf",
+            "toolchainBinDir": "C:/Users/prborole/.platformio/packages/toolchain-xtensa32/bin",
+            "internalConsoleOptions": "openOnSessionStart"
         }
     ]
 }
