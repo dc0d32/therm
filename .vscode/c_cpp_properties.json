@@ -4,8 +4,11 @@
             "name": "esp8266",
             "includePath": [
                 "${workspaceFolder}/**",
+                "C:\\Users\\prborole\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.7.4\\**",
                 "C:\\Users\\prborole\\AppData\\Local\\Arduino15\\packages\\esp8266\\tools\\**",
-                "C:\\Users\\prborole\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.7.4\\**"
+                "C:\\Users\\prborole\\Downloads\\arduino-1.8.13\\hardware\\tools\\**",
+                "C:\\Users\\prborole\\Downloads\\arduino-1.8.13\\libraries\\**",
+                "C:\\Users\\prborole\\Documents\\Arduino\\libraries\\**"
             ],
             "defines": [
                 "_DEBUG",
