@@ -430,7 +430,7 @@ void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int len
   else if (topic_str.endsWith(topic_rl_heat))
   {
     relay_pin = RELAY_HEAT_PIN;
-    Serial.println(String("fan state = ") + state);
+    Serial.println(String("heat state = ") + state);
     if (state >= 0)
     {
       digitalWrite(relay_pin, state);
@@ -443,7 +443,7 @@ void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int len
     strncpy(buff.get(), (char *)payload, length);
     buff.get()[length] = 0;
     String payload_str = String(buff.get());
-    
+
     Serial.println(String("set temp = ") + payload_str);
 
     therm_state.tgt_temp = payload_str.toFloat(); // TODO: pull this out into a function
@@ -537,6 +537,11 @@ void init_mqtt()
 
 // knob
 
+void report_new_target_temp_task()
+{
+  send_mqtt_state();
+}
+
 void knob_interrupt_handler_impl(bool pin_a, bool pin_b)
 {
   uint8_t state = (pin_a << 1) | pin_b;
@@ -573,15 +578,44 @@ void knob_rotate_handler_task()
   if (!knob_delta)
     return;
 
-  Serial.println(String("delta ") + knob_delta);
+  if (!isnan(therm_state.tgt_temp))
+  {
+    therm_state.tgt_temp += knob_delta * 0.25;
+    Serial.println(String("target temp ") + therm_state.tgt_temp);
 
+    sched.add_or_update_task((void *)report_new_target_temp_task, 0, NULL, 0, 0, 5 * 1000);
+  }
   knob_delta = 0;
+}
+
+void knob_button_handle_change(int state)
+{
+  Serial.println(String("button state changed ") + state);
+}
+
+bool prev_knob_isr_button_state = 0;
+void knob_button_debouncer_task()
+{
+  int current_state = digitalRead(KNOB_BTN_PIN);
+  if (prev_knob_isr_button_state == current_state)
+  {
+    // state held for duration of time, report
+    knob_button_handle_change(current_state);
+  }
+}
+
+ICACHE_RAM_ATTR void knob_button_interrupt_handler()
+{
+  int current_state = digitalRead(KNOB_BTN_PIN);
+  prev_knob_isr_button_state = current_state;
+  sched.add_or_update_task((void *)knob_button_debouncer_task, 0, NULL, 0, 0, 1);
 }
 
 void init_knob()
 {
   attachInterrupt(digitalPinToInterrupt(KNOB_A_PIN), knob_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(KNOB_B_PIN), knob_interrupt_handler, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(KNOB_BTN_PIN), knob_button_interrupt_handler, CHANGE);
   sched.add_or_update_task((void *)knob_rotate_handler_task, 0, NULL, 0, 1, 0);
 }
 
