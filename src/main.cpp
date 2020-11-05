@@ -16,6 +16,8 @@
 
 #include <LittleFS.h>
 
+#include <ArduinoJson.h>
+
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -53,6 +55,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 ESP8266WebServer web_server(80);
 
 // MQTT
+String stat_topic, cmnd_topic;
+
 const PROGMEM char *topic_component = "therm";
 const PROGMEM char *topic_rl_fan = "rl_fan";
 const PROGMEM char *topic_rl_heat = "rl_heat";
@@ -67,6 +71,7 @@ struct
   uint8 fan_relay = 0, heat_relay = 0;
   uint8 presence = 0;
   float cur_temp = NAN, cur_hum = NAN, tgt_temp = NAN, last_reported_temp = NAN, last_reported_hum = NAN;
+  uint64 last_reported_ts = 0;
 } therm_state;
 
 // knob
@@ -76,6 +81,8 @@ int8 knob_delta = 0;
 // temp and humidity avg
 #define MIN_TEMP_DELTA_BETWEEN_REPORTS 0.05
 #define MIN_HUM_DELTA_BETWEEN_REPORTS 0.1
+#define TEMP_REPORT_NOCHANGE_PERIOD (60 * 1000)
+
 struct
 {
   float temp_window_sum = NAN, hum_window_sum = NAN;
@@ -85,7 +92,10 @@ struct
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // fwd declarations
-void send_mqtt_state();
+void send_mqtt_state_relays();
+void send_mqtt_state_presence();
+void send_mqtt_state_cur_temp();
+void send_mqtt_state_target_temp();
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -159,16 +169,13 @@ void dht11_sensor_report_task()
     return;
   }
 
-  if (isnan(therm_state.last_reported_temp))
+  if (isnan(therm_state.last_reported_temp) ||
+      (abs(therm_state.last_reported_temp - therm_state.cur_temp) >= MIN_TEMP_DELTA_BETWEEN_REPORTS || abs(therm_state.last_reported_hum - therm_state.cur_hum) >= MIN_HUM_DELTA_BETWEEN_REPORTS || millis() - therm_state.last_reported_ts > TEMP_REPORT_NOCHANGE_PERIOD))
   {
     therm_state.last_reported_temp = therm_state.cur_temp;
     therm_state.last_reported_hum = therm_state.cur_hum;
-  }
-  else if (abs(therm_state.last_reported_temp - therm_state.cur_temp) >= MIN_TEMP_DELTA_BETWEEN_REPORTS || abs(therm_state.last_reported_hum - therm_state.cur_hum) >= MIN_HUM_DELTA_BETWEEN_REPORTS)
-  {
-    send_mqtt_state();
-    therm_state.last_reported_temp = therm_state.cur_temp;
-    therm_state.last_reported_hum = therm_state.cur_hum;
+    therm_state.last_reported_ts = millis();
+    send_mqtt_state_cur_temp();
   }
 }
 
@@ -186,18 +193,18 @@ void setup_dht()
 
 void presence_detection_timeout_task(void *)
 {
-  Serial.println(F("--- idle for too long"));
+  // Serial.println(F("--- idle for too long"));
   // digitalWrite(RELAY_FAN_PIN, LOW);
   therm_state.presence = 0;
-  send_mqtt_state();
+  send_mqtt_state_presence();
 }
 
 ICACHE_RAM_ATTR void presence_detection_task()
 {
-  Serial.println("+++ presence detected");
+  // Serial.println("+++ presence detected");
   // digitalWrite(RELAY_FAN_PIN, HIGH);
   therm_state.presence = 1;
-  send_mqtt_state();
+  send_mqtt_state_presence();
   sched.add_or_update_task((void *)&presence_detection_timeout_task, 0, NULL, 1, 0, 10000 /*15 * 60 * 1000*/); // 15 min delay, not periodic
 }
 
@@ -409,53 +416,72 @@ void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int len
   }
   Serial.println();
 
-  String topic_str(topic);
-  int state = -1;
-  if (lwip_strnicmp((const char *)payload, "on", length) == 0)
-    state = 1;
-  else if (lwip_strnicmp((const char *)payload, "off", length) == 0)
-    state = 0;
-
-  int relay_pin = -1;
-  if (topic_str.endsWith(topic_rl_fan))
+  DynamicJsonDocument jdoc(200);
+  auto json_error = deserializeJson(jdoc, payload, length);
+  if (json_error)
   {
-    relay_pin = RELAY_FAN_PIN;
-    Serial.println(String("fan state = ") + state);
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(json_error.f_str());
+    return;
+  }
+  JsonObject jobj = jdoc.as<JsonObject>();
+
+  bool cmd_contains_relays = false;
+  if (jobj.containsKey(topic_rl_fan))
+  {
+    int relay_pin = RELAY_FAN_PIN;
+    String state_str = jobj[topic_rl_fan];
+    int state = -1;
+    if (state_str.equalsIgnoreCase("on"))
+      state = 1;
+    else if (state_str.equalsIgnoreCase("off"))
+      state = 0;
     if (state >= 0)
     {
+      Serial.println(String("fan state = ") + state);
       digitalWrite(relay_pin, state);
       therm_state.fan_relay = state;
     }
+    cmd_contains_relays = true;
   }
-  else if (topic_str.endsWith(topic_rl_heat))
+  if (jobj.containsKey(topic_rl_heat))
   {
-    relay_pin = RELAY_HEAT_PIN;
-    Serial.println(String("heat state = ") + state);
+    int relay_pin = RELAY_HEAT_PIN;
+    String state_str = jobj[topic_rl_heat];
+    int state = -1;
+    if (state_str.equalsIgnoreCase("on"))
+      state = 1;
+    else if (state_str.equalsIgnoreCase("off"))
+      state = 0;
     if (state >= 0)
     {
+      Serial.println(String("heat state = ") + state);
       digitalWrite(relay_pin, state);
       therm_state.heat_relay = state;
     }
+    cmd_contains_relays = true;
   }
-  else if (topic_str.endsWith(topic_set_temp))
+  if (jobj.containsKey(topic_set_temp))
   {
-    auto buff = std::auto_ptr<char>(new char[length + 1]);
-    strncpy(buff.get(), (char *)payload, length);
-    buff.get()[length] = 0;
-    String payload_str = String(buff.get());
+    float target_temp = jobj[topic_set_temp];
 
-    Serial.println(String("set temp = ") + payload_str);
-
-    therm_state.tgt_temp = payload_str.toFloat(); // TODO: pull this out into a function
-    return;
+    if (!isnan(target_temp))
+    {
+      Serial.println(String("set temp = ") + target_temp);
+      therm_state.tgt_temp = target_temp; // TODO: pull this out into a function
+    }
   }
-  else
+
+  // we don't understand other message yet
+
+  // respond with actions taken
+  if (cmd_contains_relays)
   {
-    // we don't understand the message yet (then why did the broker send it our way?)
-    return;
+    // command had something to say about relays, and we've taken action if any. Send current state.
+    send_mqtt_state_relays();
   }
 
-  // send the updated
+  return;
 }
 
 void mqtt_connect()
@@ -466,17 +492,8 @@ void mqtt_connect()
     if (mqtt_client.connect(wifi_conf.host.c_str(), wifi_conf.mqtt_user.c_str(), wifi_conf.mqtt_pass.c_str()))
     {
       Serial.println("connected");
-      String topic_prefix = "cmnd/";
-      topic_prefix += topic_component;
-      topic_prefix += "/";
-      topic_prefix += wifi_conf.host;
-      topic_prefix += "/";
-      Serial.println("Subscribe to " + topic_prefix + topic_rl_fan);
-      mqtt_client.subscribe((topic_prefix + topic_rl_fan).c_str(), 1);
-      Serial.println("Subscribe to " + topic_prefix + topic_rl_heat);
-      mqtt_client.subscribe((topic_prefix + topic_rl_heat).c_str(), 1);
-      Serial.println("Subscribe to " + topic_prefix + topic_set_temp);
-      mqtt_client.subscribe((topic_prefix + topic_set_temp).c_str(), 1);
+      Serial.println("Subscribe to " + cmnd_topic);
+      mqtt_client.subscribe(cmnd_topic.c_str(), 1);
 
       mqtt_client.setCallback(mqtt_incoming_message_callback);
     }
@@ -488,49 +505,89 @@ void mqtt_update_task(void *)
   mqtt_client.loop();
 }
 
-void send_mqtt_state()
+void send_mqtt_state(const JsonDocument &jdoc)
 {
-  String topic_prefix = "stat/";
-  topic_prefix += topic_component;
-  topic_prefix += "/";
-  topic_prefix += wifi_conf.host;
-  topic_prefix += "/";
+  if (!mqtt_client.connected())
+    return;
 
-  Serial.println("MQTT: " + (topic_prefix + topic_rl_fan) + " = " + (therm_state.fan_relay ? "on" : "off"));
-  mqtt_client.publish((topic_prefix + topic_rl_fan).c_str(), therm_state.fan_relay ? "on" : "off");
+  String serialized_payload;
+  serializeJsonPretty(jdoc, serialized_payload);
+  Serial.println("MQTT: " + stat_topic + " = " + serialized_payload);
+  mqtt_client.publish(stat_topic.c_str(), serialized_payload.c_str());
+}
 
-  Serial.println("MQTT: " + (topic_prefix + topic_rl_heat) + " = " + (therm_state.heat_relay ? "on" : "off"));
-  mqtt_client.publish((topic_prefix + topic_rl_heat).c_str(), therm_state.heat_relay ? "on" : "off");
+void send_mqtt_state_relays()
+{
+  DynamicJsonDocument jdoc(200);
 
-  Serial.println("MQTT: " + (topic_prefix + topic_sw_presence) + " = " + (therm_state.presence ? "on" : "off"));
-  mqtt_client.publish((topic_prefix + topic_sw_presence).c_str(), therm_state.presence ? "on" : "off");
+  jdoc[topic_rl_fan] = (therm_state.fan_relay ? "on" : "off");
+  jdoc[topic_rl_heat] = (therm_state.heat_relay ? "on" : "off");
 
+  send_mqtt_state(jdoc);
+}
+
+void send_mqtt_state_presence()
+{
+  DynamicJsonDocument jdoc(200);
+
+  jdoc[topic_sw_presence] = (therm_state.presence ? "on" : "off");
+
+  send_mqtt_state(jdoc);
+}
+
+void send_mqtt_state_cur_temp()
+{
+  DynamicJsonDocument jdoc(200);
+
+  bool should_send = false;
   if (!isnan(therm_state.cur_temp))
   {
-    Serial.println("MQTT: " + (topic_prefix + topic_cur_temp) + " = " + therm_state.cur_temp);
-    mqtt_client.publish((topic_prefix + topic_cur_temp).c_str(), String(therm_state.cur_temp).c_str());
+    jdoc[topic_cur_temp] = therm_state.cur_temp;
+    should_send = true;
   }
 
   if (!isnan(therm_state.cur_hum))
   {
-    Serial.println("MQTT: " + (topic_prefix + topic_cur_hum) + " = " + therm_state.cur_hum);
-    mqtt_client.publish((topic_prefix + topic_cur_hum).c_str(), String(therm_state.cur_hum).c_str());
+    jdoc[topic_cur_hum] = therm_state.cur_hum;
+    should_send = true;
   }
 
+  if (should_send)
+  {
+    send_mqtt_state(jdoc);
+  }
+}
+
+void send_mqtt_state_target_temp()
+{
+  DynamicJsonDocument jdoc(200);
+
+  bool should_send = false;
   if (!isnan(therm_state.tgt_temp))
   {
-    Serial.println("MQTT: " + (topic_prefix + topic_set_temp) + " = " + therm_state.tgt_temp);
-    mqtt_client.publish((topic_prefix + topic_set_temp).c_str(), String(therm_state.tgt_temp).c_str());
+    jdoc[topic_set_temp] = therm_state.tgt_temp;
+    should_send = true;
+  }
+
+  if (should_send)
+  {
+    send_mqtt_state(jdoc);
   }
 }
 
 void init_mqtt()
 {
+  String common_mid = topic_component;
+  common_mid += "/";
+  common_mid += wifi_conf.host;
+  stat_topic = "stat/" + common_mid;
+  cmnd_topic = "cmnd/" + common_mid;
+
   Serial.println(String("MQTT server: " + wifi_conf.mqtt_server));
   mqtt_client.setServer(wifi_conf.mqtt_server.c_str(), 1883);
 
-  sched.add_or_update_task((void *)mqtt_connect, 0, NULL, 0, 30 * 1000, 5000);
-  sched.add_or_update_task((void *)mqtt_update_task, 0, NULL, 0, 10, 1000);
+  sched.add_or_update_task((void *)mqtt_connect, 0, NULL, 0, 30 * 1000, 15000);
+  sched.add_or_update_task((void *)mqtt_update_task, 0, NULL, 0, 1, 1000);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -539,7 +596,7 @@ void init_mqtt()
 
 void report_new_target_temp_task()
 {
-  send_mqtt_state();
+  send_mqtt_state_target_temp();
 }
 
 void knob_interrupt_handler_impl(bool pin_a, bool pin_b)
@@ -547,10 +604,11 @@ void knob_interrupt_handler_impl(bool pin_a, bool pin_b)
   uint8_t state = (pin_a << 1) | pin_b;
   if (state != (knob_pin_state_history & 0x3))
   {
+    // Serial.println(String("ec11 new state = ") + state);
+    // Serial.println(String("knob_pin_state_history = ") + knob_pin_state_history);
+
     knob_pin_state_history <<= 2;
     knob_pin_state_history |= state;
-
-    // Serial.println(String("knob_pin_state_history = ") + knob_pin_state_history);
 
     if (knob_pin_state_history == 0x87)
     {
@@ -577,11 +635,12 @@ void knob_rotate_handler_task()
 {
   if (!knob_delta)
     return;
+  // Serial.println(String("delta = ") + knob_delta);
 
   if (!isnan(therm_state.tgt_temp))
   {
     therm_state.tgt_temp += knob_delta * 0.25;
-    Serial.println(String("target temp ") + therm_state.tgt_temp);
+    // Serial.println(String("target temp ") + therm_state.tgt_temp);
 
     sched.add_or_update_task((void *)report_new_target_temp_task, 0, NULL, 0, 0, 5 * 1000);
   }
@@ -618,6 +677,24 @@ void init_knob()
   attachInterrupt(digitalPinToInterrupt(KNOB_BTN_PIN), knob_button_interrupt_handler, CHANGE);
   sched.add_or_update_task((void *)knob_rotate_handler_task, 0, NULL, 0, 1, 0);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+// graphics
+
+// 'flame', 16x16px
+const unsigned char bmp_flame[] PROGMEM = {
+    0xff, 0xff, 0xfe, 0xff, 0xfe, 0x7f, 0xfe, 0x7f, 0xfc, 0x3f, 0xf8, 0x37, 0xf8, 0x87, 0xe0, 0xc3,
+    0xc3, 0xc3, 0xc3, 0xe3, 0xc7, 0xe3, 0xcf, 0xe3, 0xcf, 0xe7, 0xef, 0xef, 0xff, 0xff, 0xff, 0xff};
+
+// 'fan', 16x16px
+const unsigned char bmp_fan[] PROGMEM = {
+    0xfc, 0x3f, 0xf8, 0x1f, 0xf8, 0x1f, 0xfc, 0x1f, 0xfc, 0x1f, 0x82, 0x19, 0x00, 0x20, 0x00, 0x00,
+    0x00, 0x00, 0x04, 0x00, 0x98, 0x41, 0xf8, 0x3f, 0xf8, 0x3f, 0xf8, 0x1f, 0xf8, 0x1f, 0xfc, 0x3f};
+
+// 'person', 16x16px
+const unsigned char person[] PROGMEM = {
+    0xff, 0xe7, 0xff, 0xe7, 0xfc, 0x3f, 0xf3, 0x9f, 0xf7, 0x0f, 0xff, 0x2f, 0xfe, 0x60, 0xfc, 0xff,
+    0xfc, 0xff, 0xfa, 0x7f, 0x07, 0x9f, 0xff, 0x9f, 0xff, 0xbf, 0xff, 0xbf, 0xff, 0x7f, 0x00, 0x00};
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
