@@ -4,6 +4,14 @@
 #include <LittleFS.h>
 #include "utils.h"
 
+////////////////////////////////////////////////////////////////
+// TODO: persist this in EEPROM
+
+ThermState therm_state;
+
+////////////////////////////////////////////////////////////////
+// WIFI config
+
 WifiConfig::WifiConfig() : ssid(""), pass("")
 {
     host = "Therm_";
@@ -67,3 +75,20 @@ bool WifiConfig::write(const char *filePath)
     configFile.close();
     return true;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+// filesystem
+void init_fs()
+{
+  Serial.println("Mount LittleFS");
+  if (!LittleFS.begin())
+  {
+    Serial.println("Format.");
+    LittleFS.format();
+    Serial.println("Mount newly formatted LittleFS");
+    LittleFS.begin();
+  }
+  Serial.println("LittleFS mounted");
+}
+
