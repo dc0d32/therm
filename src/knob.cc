@@ -3,7 +3,7 @@
 #include "config.h"
 #include "tasks.h"
 #include "mqtt.h"
-
+#include "disp.h"
 
 uint8 knob_pin_state_history;
 int8 knob_delta;
@@ -55,7 +55,7 @@ void knob_rotate_handler_task()
   {
     therm_state.tgt_temp += knob_delta * 0.25;
     // Serial.println(String("target temp ") + therm_state.tgt_temp);
-
+    draw_target_temp();
     sched.add_or_update_task((void *)report_new_target_temp_task, 0, NULL, 0, 0, 5 * 1000);
   }
   knob_delta = 0;

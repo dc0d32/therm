@@ -4,6 +4,7 @@
 #include "config.h"
 #include "tasks.h"
 #include "mqtt.h"
+#include "disp.h"
 
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
@@ -97,6 +98,8 @@ void dht11_sensor_report_task()
         therm_state.last_reported_ts = millis();
         send_mqtt_state_cur_temp();
     }
+
+    draw_current_temp();
 }
 
 void setup_dht()
