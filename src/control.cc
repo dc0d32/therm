@@ -6,9 +6,6 @@
 #include "tasks.h"
 #include "mqtt.h"
 
-extern scheduler sched;
-
-
 int64_t last_fan_off_ts = -1;
 bool fan_off()
 {

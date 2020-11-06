@@ -1,8 +1,6 @@
 #include "wifi.h"
 #include "tasks.h"
 
-extern scheduler sched;
-
 ESP8266WebServer web_server(80);
 WifiConfig wifi_conf;
 

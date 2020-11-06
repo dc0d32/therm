@@ -16,7 +16,6 @@ struct
 } dht11_avg_storage;
 
 DHT_Unified dht_sensor(DHT11_PIN, DHT11); // DHT temp sensor (adafruit library)
-extern scheduler sched;
 
 void dht11_sensor_read_task(void *)
 {

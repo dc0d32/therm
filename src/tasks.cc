@@ -1,5 +1,7 @@
 #include "tasks.h"
 
+scheduler sched(MAX_NUM_TASKS); // 'task' scheduler
+
 int scheduler::find_task(void *func, int id)
 {
     for (int i = 0; i < num_tasks; i++)

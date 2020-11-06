@@ -4,8 +4,6 @@
 #include "tasks.h"
 #include "mqtt.h"
 
-extern scheduler sched;
-
 
 uint8 knob_pin_state_history;
 int8 knob_delta;

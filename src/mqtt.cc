@@ -4,8 +4,6 @@
 #include "control.h"
 #include <ArduinoJson.h>
 
-extern scheduler sched;
-
 String stat_topic, cmnd_topic;
 
 const PROGMEM char *topic_component = "therm";

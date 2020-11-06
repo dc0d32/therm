@@ -4,8 +4,6 @@
 #include "config.h"
 #include "tasks.h"
 
-extern scheduler sched;
-
 void presence_detection_timeout_task(void *)
 {
     // Serial.println(F("--- idle for too long"));

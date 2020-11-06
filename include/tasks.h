@@ -4,6 +4,7 @@
 #include <arduino.h>
 
 #define get_ts millis
+#define MAX_NUM_TASKS 20
 
 class scheduler
 {
@@ -41,5 +42,7 @@ public:
 
     void run(int notask_delay);
 };
+
+extern scheduler sched;
 
 #endif
