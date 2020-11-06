@@ -79,8 +79,8 @@ uint8 knob_pin_state_history = 0;
 int8 knob_delta = 0;
 
 // temp and humidity avg
-#define MIN_TEMP_DELTA_BETWEEN_REPORTS 0.05
-#define MIN_HUM_DELTA_BETWEEN_REPORTS 0.1
+#define MIN_TEMP_DELTA_BETWEEN_REPORTS 0.1
+#define MIN_HUM_DELTA_BETWEEN_REPORTS 1.0
 #define TEMP_REPORT_NOCHANGE_PERIOD (60 * 1000)
 
 struct
@@ -88,7 +88,7 @@ struct
   float temp_window_sum = NAN, hum_window_sum = NAN;
   uint8 temp_sample_counts = 0, hum_sample_counts = 0;
 } dht11_avg_storage;
-#define NUM_SAMPLES_FOR_TEMP_AVG 5
+#define NUM_SAMPLES_FOR_TEMP_AVG 10
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // fwd declarations
@@ -96,6 +96,12 @@ void send_mqtt_state_relays();
 void send_mqtt_state_presence();
 void send_mqtt_state_cur_temp();
 void send_mqtt_state_target_temp();
+
+bool fan_on();
+bool fan_off();
+bool heat_on();
+bool heat_off();
+void update_target_temp(float);
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -110,13 +116,15 @@ void dht11_sensor_read_task(void *)
   }
   else
   {
+    float temperature = event.temperature * 1.8 + 32;
+
     // Serial.print(F("Temperature: "));
-    // Serial.print(event.temperature);
-    // Serial.println(F("°C"));
+    // Serial.print(temperature);
+    // Serial.println(F("°F"));
 
     if (dht11_avg_storage.temp_sample_counts == 0)
     {
-      dht11_avg_storage.temp_window_sum = event.temperature;
+      dht11_avg_storage.temp_window_sum = temperature;
     }
     else
     {
@@ -127,7 +135,7 @@ void dht11_sensor_read_task(void *)
         --dht11_avg_storage.temp_sample_counts;
       }
 
-      dht11_avg_storage.temp_window_sum += event.temperature;
+      dht11_avg_storage.temp_window_sum += temperature;
     }
     ++dht11_avg_storage.temp_sample_counts;
   }
@@ -426,40 +434,21 @@ void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int len
   }
   JsonObject jobj = jdoc.as<JsonObject>();
 
-  bool cmd_contains_relays = false;
   if (jobj.containsKey(topic_rl_fan))
   {
-    int relay_pin = RELAY_FAN_PIN;
     String state_str = jobj[topic_rl_fan];
-    int state = -1;
     if (state_str.equalsIgnoreCase("on"))
-      state = 1;
+      fan_on();
     else if (state_str.equalsIgnoreCase("off"))
-      state = 0;
-    if (state >= 0)
-    {
-      Serial.println(String("fan state = ") + state);
-      digitalWrite(relay_pin, state);
-      therm_state.fan_relay = state;
-    }
-    cmd_contains_relays = true;
+      fan_off();
   }
   if (jobj.containsKey(topic_rl_heat))
   {
-    int relay_pin = RELAY_HEAT_PIN;
     String state_str = jobj[topic_rl_heat];
-    int state = -1;
     if (state_str.equalsIgnoreCase("on"))
-      state = 1;
+      heat_on();
     else if (state_str.equalsIgnoreCase("off"))
-      state = 0;
-    if (state >= 0)
-    {
-      Serial.println(String("heat state = ") + state);
-      digitalWrite(relay_pin, state);
-      therm_state.heat_relay = state;
-    }
-    cmd_contains_relays = true;
+      heat_off();
   }
   if (jobj.containsKey(topic_set_temp))
   {
@@ -467,19 +456,11 @@ void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int len
 
     if (!isnan(target_temp))
     {
-      Serial.println(String("set temp = ") + target_temp);
-      therm_state.tgt_temp = target_temp; // TODO: pull this out into a function
+      update_target_temp(target_temp);
     }
   }
 
   // we don't understand other message yet
-
-  // respond with actions taken
-  if (cmd_contains_relays)
-  {
-    // command had something to say about relays, and we've taken action if any. Send current state.
-    send_mqtt_state_relays();
-  }
 
   return;
 }
@@ -695,6 +676,128 @@ const unsigned char bmp_fan[] PROGMEM = {
 const unsigned char person[] PROGMEM = {
     0xff, 0xe7, 0xff, 0xe7, 0xfc, 0x3f, 0xf3, 0x9f, 0xf7, 0x0f, 0xff, 0x2f, 0xfe, 0x60, 0xfc, 0xff,
     0xfc, 0xff, 0xfa, 0x7f, 0x07, 0x9f, 0xff, 0x9f, 0xff, 0xbf, 0xff, 0xbf, 0xff, 0x7f, 0x00, 0x00};
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+// control functions
+
+int64_t last_fan_off_ts = -1;
+bool fan_off()
+{
+  bool ret = false;
+  if (!therm_state.fan_relay)
+  {
+    ret = true;
+  }
+  else
+  {
+    if (therm_state.heat_relay)
+    {
+      // can't turn off fan when heat is on
+      ret = false;
+    }
+    else
+    {
+      // TODO: in case we want to enforce minimum running time for a fan, handle that here.
+
+      therm_state.fan_relay = 0;
+      digitalWrite(RELAY_FAN_PIN, LOW);
+      sched.remove_task((void *)fan_off, 0);
+      last_fan_off_ts = millis();
+      ret = true;
+    }
+  }
+  sched.add_or_update_task((void *)send_mqtt_state_relays, 0, NULL, 0, 0, 100);
+  return ret;
+}
+
+bool fan_on()
+{
+  bool ret = false;
+
+  if (therm_state.fan_relay)
+  {
+    ret = true;
+  }
+  else
+  {
+    // check for cooldown. We don't want to turn the fan on immediately after it was turned off
+    if (last_fan_off_ts > 0 && millis() - last_fan_off_ts < 5 * 60 * 1000)
+    {
+      ret = false;
+    }
+    else
+    {
+      therm_state.fan_relay = 1;
+      digitalWrite(RELAY_FAN_PIN, HIGH);
+      sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, 60 * 60 * 1000);
+      ret = true;
+    }
+  }
+  sched.remove_task((void *)fan_on, 0);
+  sched.remove_task((void *)fan_on, 1);
+  sched.add_or_update_task((void *)send_mqtt_state_relays, 0, NULL, 0, 0, 100);
+  return ret;
+}
+
+int64_t last_heat_off_ts = -1;
+bool heat_off()
+{
+  bool ret = false;
+  if (!therm_state.heat_relay)
+  {
+    ret = true;
+  }
+  else
+  {
+    // TODO: in case we want to enforce minimum running time for a heat, handle that here.
+
+    therm_state.heat_relay = 0;
+    digitalWrite(RELAY_HEAT_PIN, LOW);
+    sched.remove_task((void *)heat_off, 0);
+    last_heat_off_ts = millis();
+    ret = true;
+  }
+  sched.add_or_update_task((void *)send_mqtt_state_relays, 0, NULL, 0, 0, 100);
+  return ret;
+}
+
+bool heat_on()
+{
+  bool ret = false;
+
+  if (therm_state.heat_relay)
+  {
+    ret = true;
+  }
+  else
+  {
+    // check for cooldown. We don't want to turn the heat on immediately after it was turned off
+    if (last_heat_off_ts > 0 && millis() - last_heat_off_ts < 5 * 60 * 1000)
+    {
+      ret = false;
+    }
+    else
+    {
+      therm_state.heat_relay = 1;
+      digitalWrite(RELAY_HEAT_PIN, HIGH);
+      sched.add_or_update_task((void *)fan_on, 1, NULL, 0, 0, 30 * 1000);        // safety task: fan must come on few seconds after heat does, even if we don't hear anything from the controller
+      sched.add_or_update_task((void *)heat_off, 0, NULL, 0, 0, 30 * 60 * 1000); // safety task: fan can not run for for too long
+      ret = true;
+    }
+  }
+  sched.add_or_update_task((void *)send_mqtt_state_relays, 0, NULL, 0, 0, 100);
+  return ret;
+}
+
+void update_target_temp(float target)
+{
+  // Serial.println(String("set temp = ") + target);
+  therm_state.tgt_temp = target;
+  sched.add_or_update_task((void *)send_mqtt_state_target_temp, 0, NULL, 0, 0, 100);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
