@@ -157,16 +157,24 @@ void scheduler::run(int notask_delay)
             // run the task
             // Serial.printf("run task %d \n", task_idx);
             ((void (*)(void *))task.func_ptr)(task.params);
-            if (task.period > 0)
+
+            // after the function runs, it could have removed itself from the schedule or updated timings -- check for that
+            // even if the task updates itself, it can end up at the same idx; but it would have a different next_ts
+            auto task2 = tasks[task_idx];
+            if (task.func_ptr == task2.func_ptr && task.id == task2.id && task.next_ts == task2.next_ts)
             {
-                rearm_task(task_idx);
-                // Serial.printf("rearm task %d \n", task_idx);
-            }
-            else
-            {
-                // task done, no repeat. delete
-                remove_task(task_idx);
-                // Serial.printf("delete task %d \n", task_idx);
+                // task did not move or update
+                if (task.period > 0)
+                {
+                    rearm_task(task_idx);
+                    // Serial.printf("rearm task %d \n", task_idx);
+                }
+                else
+                {
+                    // task done, no repeat. delete
+                    remove_task(task_idx);
+                    // Serial.printf("delete task %d \n", task_idx);
+                }
             }
             yield(); // give network stack a chance to grab stuff from wifi
             ++num_tasks_run;
