@@ -6,6 +6,7 @@
 #include "tasks.h"
 #include "mqtt.h"
 #include "disp.h"
+#include "utils.h"
 
 int64_t last_fan_off_ts = -1;
 bool fan_off()
@@ -59,7 +60,7 @@ bool fan_on()
   else
   {
     // check for cooldown. We don't want to turn the fan on immediately after it was turned off
-    if (last_fan_off_ts > 0 && millis() - last_fan_off_ts < 5 * 1000)
+    if (last_fan_off_ts > 0 && millis() - last_fan_off_ts < MS_FROM_MINUTES(5))
     {
       ret = false;
       // Serial.println(String("fan in cooldown mode, not turning back on"));
@@ -68,9 +69,8 @@ bool fan_on()
     {
       therm_state.fan_relay = 1;
       digitalWrite(RELAY_FAN_PIN, HIGH);
-      bool was_fan_off_task_added = sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, 5 * 1000); // safety task: fan can't run continuously for too long
-                                                                                                        // Serial.println(String("fan turned on. scheduled Off task = ") + was_fan_off_task_added);
-
+      // Serial.println(String("fan turned on. scheduled Off task = ") + was_fan_off_task_added);
+      bool was_fan_off_task_added = sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, MS_FROM_MINUTES(45)); // safety task: fan can't run continuously for too long
       ret = true;
     }
   }
@@ -125,7 +125,7 @@ bool heat_on()
   else
   {
     // check for cooldown. We don't want to turn the heat on immediately after it was turned off
-    if (last_heat_off_ts > 0 && millis() - last_heat_off_ts < 5 * 1000)
+    if (last_heat_off_ts > 0 && millis() - last_heat_off_ts < MS_FROM_MINUTES(5))
     {
       // Serial.println(String("heat won't turn on. in cooldown"));
 
@@ -135,8 +135,8 @@ bool heat_on()
     {
       therm_state.heat_relay = 1;
       digitalWrite(RELAY_HEAT_PIN, HIGH);
-      bool was_fan_on_task_added = sched.add_or_update_task((void *)fan_on, 0, NULL, 0, 0, 2 * 1000);     // safety task: fan must come on few seconds after heat does, even if we don't hear anything from the controller
-      bool was_heat_off_task_added = sched.add_or_update_task((void *)heat_off, 0, NULL, 0, 0, 5 * 1000); // safety task: heat can not run for for too long
+      bool was_fan_on_task_added = sched.add_or_update_task((void *)fan_on, 0, NULL, 0, 0, MS_FROM_MINUTES(1));     // safety task: fan must come on few seconds after heat does, even if we don't hear anything from the controller
+      bool was_heat_off_task_added = sched.add_or_update_task((void *)heat_off, 0, NULL, 0, 0, MS_FROM_MINUTES(30)); // safety task: heat can not run for for too long
 
       // Serial.println(String("heat turned on. scheduled task added: fan on = ") + was_fan_on_task_added + String(" , heat off = ") + was_heat_off_task_added);
 
