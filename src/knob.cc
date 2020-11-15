@@ -4,6 +4,7 @@
 #include "tasks.h"
 #include "mqtt.h"
 #include "disp.h"
+#include "control.h"
 
 uint8 knob_pin_state_history;
 int8 knob_delta;
@@ -79,6 +80,7 @@ void knob_button_debouncer_task()
 
 ICACHE_RAM_ATTR void knob_button_interrupt_handler()
 {
+  // Serial.println("interrupt");
   int current_state = digitalRead(KNOB_BTN_PIN);
   prev_knob_isr_button_state = current_state;
   sched.add_or_update_task((void *)knob_button_debouncer_task, 0, NULL, 0, 0, 1);
@@ -86,6 +88,10 @@ ICACHE_RAM_ATTR void knob_button_interrupt_handler()
 
 void init_knob()
 {
+  pinMode(KNOB_A_PIN, INPUT_PULLUP);
+  pinMode(KNOB_A_PIN, INPUT_PULLUP);
+  pinMode(KNOB_BTN_PIN, INPUT);
+
   attachInterrupt(digitalPinToInterrupt(KNOB_A_PIN), knob_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(KNOB_B_PIN), knob_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(KNOB_BTN_PIN), knob_button_interrupt_handler, CHANGE);
