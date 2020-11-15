@@ -16,7 +16,7 @@
 
 void setup()
 {
-    Serial.begin(9600);
+    Serial.begin(74880);
     init_disp();
 
     pinMode(RELAY_FAN_PIN, OUTPUT);
