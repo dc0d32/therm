@@ -7,5 +7,6 @@ void draw_target_temp();
 
 void draw_icon_heat(bool);
 void draw_icon_fan(bool);
+void draw_icon_person(bool);
 
 #endif // __DISP_H__
