@@ -27,7 +27,7 @@ void monitor_local_mode_temperature()
     else
     {
         heat_off();
-        fan_off(); // ideally this should be on a task. get the heat out of the furnace by running the fans a bit longer
+        sched.add_or_update_task((void *)fan_off, 100, NULL, 0, 0, MS_FROM_SECONDS(60));
     }
 }
 
