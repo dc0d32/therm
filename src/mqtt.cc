@@ -2,6 +2,7 @@
 #include "wifi.h"
 #include "tasks.h"
 #include "control.h"
+#include "disp.h"
 #include <ArduinoJson.h>
 
 String stat_topic, cmnd_topic;
@@ -86,6 +87,9 @@ void mqtt_connect()
       mqtt_client.setCallback(mqtt_incoming_message_callback);
     }
   }
+  
+  // update status on screen
+  draw_icon_homeassistant(mqtt_client.connected());
 }
 
 void mqtt_update_task(void *)

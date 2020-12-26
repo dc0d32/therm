@@ -1,5 +1,6 @@
 #include "wifi.h"
 #include "tasks.h"
+#include "disp.h"
 
 ESP8266WebServer web_server(80);
 WifiConfig wifi_conf;
@@ -33,15 +34,19 @@ void wifi_connect()
     if (WiFi.SSID().compareTo(wifi_conf.ssid) == 0)
     {
       Serial.println(String("already connected to WiFi SSID: ") + wifi_conf.ssid);
+      draw_icon_wifi(true);
       return;
     }
     WiFi.disconnect();
   }
 
+  draw_icon_wifi(false);
+
   Serial.println(String("attempting to connnect to WiFi SSID: ") + wifi_conf.ssid);
   WiFi.hostname(wifi_conf.host);
   WiFi.mode(WiFiMode_t::WIFI_STA);
   WiFi.begin(wifi_conf.ssid, wifi_conf.pass);
+  // since we're not sure yet whether connection is successful, we don't set the wifi icon yet. It will be set the next time wifi_connect gets called
 }
 
 void wifi_start_ap()
