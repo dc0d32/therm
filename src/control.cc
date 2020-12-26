@@ -60,7 +60,8 @@ bool fan_on()
   else
   {
     // check for cooldown. We don't want to turn the fan on immediately after it was turned off
-    if (last_fan_off_ts > 0 && millis() - last_fan_off_ts < MS_FROM_MINUTES(5))
+    // but if the heat is on, we'd honor the fan_on request even in the cooldown period
+    if ((!therm_state.heat_relay) && (last_fan_off_ts > 0 && millis() - last_fan_off_ts < MS_FROM_MINUTES(5)))
     {
       ret = false;
       // Serial.println(String("fan in cooldown mode, not turning back on"));
