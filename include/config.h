@@ -58,6 +58,7 @@ struct ThermState
   uint8 presence = 0;
   float cur_temp = NAN, cur_hum = NAN, tgt_temp = NAN, last_reported_temp = NAN, last_reported_hum = NAN;
   uint64 last_reported_ts = 0;
+  uint8 local_mode = 0;
 };
 
 extern ThermState therm_state;
