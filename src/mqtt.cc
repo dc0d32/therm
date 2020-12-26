@@ -19,6 +19,9 @@ PubSubClient mqtt_client(mqtt_espClient);
 
 void mqtt_incoming_message_callback(char *topic, byte *payload, unsigned int length)
 {
+  if (therm_state.local_mode)
+    return;
+
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -92,6 +95,9 @@ void mqtt_update_task(void *)
 
 void send_mqtt_state(const JsonDocument &jdoc)
 {
+  if (therm_state.local_mode)
+    return;
+
   if (!mqtt_client.connected())
     return;
 

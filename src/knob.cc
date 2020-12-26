@@ -5,6 +5,8 @@
 #include "mqtt.h"
 #include "disp.h"
 #include "control.h"
+#include "utils.h"
+#include "local_thermostat.h"
 
 uint8 knob_pin_state_history;
 int8 knob_delta;
@@ -62,9 +64,32 @@ void knob_rotate_handler_task()
   knob_delta = 0;
 }
 
+void button_long_press_task_handler()
+{
+  Serial.println(String("long press!!!"));
+  if (therm_state.local_mode)
+  {
+    disable_local_thermostat();
+  }
+  else
+  {
+    enable_local_thermostat();
+  }
+  sched.remove_task((void*)button_long_press_task_handler, 0);
+}
+
 void knob_button_handle_change(int state)
 {
   Serial.println(String("button state changed ") + state);
+  if (state)
+  {
+    sched.add_or_update_task((void*)button_long_press_task_handler, 0, NULL, 2, 0, MS_FROM_SECONDS(2));
+  }
+  else
+  {
+    sched.remove_task((void*)button_long_press_task_handler, 0);
+  }
+  
 }
 
 bool prev_knob_isr_button_state = 0;
