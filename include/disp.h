@@ -2,6 +2,7 @@
 #define __DISP_H__
 
 void init_disp();
+void set_bright_mode(bool);
 void draw_current_temp();
 void draw_target_temp();
 
