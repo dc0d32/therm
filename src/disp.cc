@@ -154,6 +154,43 @@ void draw_target_temp()
     display.drawBitmap(56, 32, canvas.getBuffer(), canvas.width(), canvas.height(), WHITE, BLACK);
 }
 
+void draw_humidity()
+{
+    GFXcanvas1 canvas(32, 32);
+    canvas.setTextColor(SSD1306_WHITE); // Draw white text
+
+    // write heading
+    canvas.setCursor(0, 0); // Start at top-left corner
+    canvas.write("Hum:");
+
+    // write value
+    canvas.setTextSize(1);               // Normal 1:1 pixel scale
+    canvas.setFont(&FreeMonoBold12pt7b); // set custom font
+    canvas.setCursor(0, 26);             // depends on the font
+
+    String temp_str = "??";
+    if (!isnan(therm_state.cur_hum))
+    {
+        int truncated_hum = therm_state.cur_hum;
+        temp_str.clear();
+        temp_str += truncated_hum % 100;
+
+        // draw fraction bar
+        // canvas.drawPixel(0, 47, WHITE);
+        // canvas.drawPixel(canvas.width() - 1, 47, WHITE);
+        canvas.drawRect(0, 30, (int)(canvas.width() * (therm_state.cur_hum - truncated_hum)), 2, WHITE);
+
+        if (truncated_hum >= 100)
+        {
+            // for 3 digit temperatures
+            canvas.drawFastVLine(0, 12, 10, WHITE);
+        }
+    }
+    canvas.write(temp_str.c_str());
+
+    display.drawBitmap(90, 32, canvas.getBuffer(), canvas.width(), canvas.height(), WHITE, BLACK);
+}
+
 void draw_icon_heat(bool show)
 {
     GFXcanvas1 canvas(16, 16);

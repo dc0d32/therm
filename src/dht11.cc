@@ -100,6 +100,7 @@ void dht11_sensor_report_task()
     }
 
     draw_current_temp();
+    draw_humidity();
 }
 
 void setup_dht()

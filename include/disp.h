@@ -4,6 +4,7 @@
 void init_disp();
 void set_bright_mode(bool);
 void draw_current_temp();
+void draw_humidity();
 void draw_target_temp();
 
 void draw_icon_heat(bool);
