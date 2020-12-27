@@ -15,6 +15,7 @@
 // screen related
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+bool bright_mode = false;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // graphics
@@ -53,6 +54,7 @@ const unsigned char bmp_local_mode[] PROGMEM = {
 
 void refresh_display()
 {
+    display.dim(!bright_mode);
     display.display();
 }
 
@@ -75,7 +77,7 @@ void init_disp()
 
 void set_bright_mode(bool bright)
 {
-    display.dim(!bright);
+    bright_mode = bright;
 }
 
 void draw_current_temp()
