@@ -33,8 +33,10 @@ void wifi_connect()
   {
     if (WiFi.SSID().compareTo(wifi_conf.ssid) == 0)
     {
+      init_web_server();
       Serial.println(String("already connected to WiFi SSID: ") + wifi_conf.ssid);
       draw_icon_wifi(true);
+
       return;
     }
     WiFi.disconnect();
@@ -80,7 +82,7 @@ void init_mdns()
   sched.add_or_update_task((void *)mdns_update_task, 0, NULL, 2, 1, 0);
 }
 
-void handleNotFound()
+void handle_404()
 {
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -99,24 +101,30 @@ void handleNotFound()
   web_server.send(404, "text/plain", message);
 }
 
-const char wifi_start_ssid_config_phase_html[] PROGMEM = R"===(
+const char config_form_html[] PROGMEM = R"===(
 <form method="GET" action="/c">
-SSID: <input type="text" name="ssid" /> <br />
-pass: <input type="password" name="pass" /> <br />
-host: <input type="text" name="host" /> <br />
-MQTT server: <input type="text" name="mqtt_server" /> <br />
-MQTT user: <input type="text" name="mqtt_user" /> <br />
-MQTT pass: <input type="password" name="mqtt_pass" /> <br />
-<input type="submit" />
+  SSID: <input type="text" name="ssid" /> <br />
+  pass: <input type="password" name="pass" /> <br />
+  <input type="submit" />
+</form>
+<form method="GET" action="/c">
+  host: <input type="text" name="host" /> <br />
+  <input type="submit" />
+</form>
+<form method="GET" action="/c">
+  MQTT server: <input type="text" name="mqtt_server" /> <br />
+  MQTT user: <input type="text" name="mqtt_user" /> <br />
+  MQTT pass: <input type="password" name="mqtt_pass" /> <br />
+  <input type="submit" />
 </form>
 )===";
 
-void wifi_start_ssid_config_phase_handle_root()
+void handle_root()
 {
-  web_server.send(200, "text/html", wifi_start_ssid_config_phase_html);
+  web_server.send(200, "text/html", config_form_html);
 }
 
-void wifi_start_ssid_config_phase_handle_params()
+void handle_config_update_params()
 {
   auto ssid = web_server.arg("ssid");
   auto pass = web_server.arg("pass");
@@ -125,18 +133,27 @@ void wifi_start_ssid_config_phase_handle_params()
   auto mqtt_user = web_server.arg("mqtt_user");
   auto mqtt_pass = web_server.arg("mqtt_pass");
 
-  if (ssid.isEmpty() || pass.isEmpty() || host.isEmpty() || mqtt_server.isEmpty() || mqtt_user.isEmpty())
+  if (!wifi_conf.read("/wifi.conf"))
   {
-    web_server.send(400, "text/html", String("empty input @") + millis());
-    return;
+    if (ssid.isEmpty() || pass.isEmpty() || host.isEmpty() || mqtt_server.isEmpty() || mqtt_user.isEmpty())
+    {
+      web_server.send(400, "text/html", String("empty input @") + millis());
+      return;
+    }
   }
 
-  wifi_conf.ssid = ssid;
-  wifi_conf.pass = pass;
-  wifi_conf.host = host;
-  wifi_conf.mqtt_server = mqtt_server;
-  wifi_conf.mqtt_user = mqtt_user;
-  wifi_conf.mqtt_pass = mqtt_pass;
+  if (!ssid.isEmpty())
+    wifi_conf.ssid = ssid;
+  if (!pass.isEmpty())
+    wifi_conf.pass = pass;
+  if (!host.isEmpty())
+    wifi_conf.host = host;
+  if (!mqtt_server.isEmpty())
+    wifi_conf.mqtt_server = mqtt_server;
+  if (!mqtt_user.isEmpty())
+    wifi_conf.mqtt_user = mqtt_user;
+  if (!mqtt_pass.isEmpty())
+    wifi_conf.mqtt_pass = mqtt_pass;
 
   web_server.send(200, "text/html", String("OK @") + millis());
 
@@ -144,14 +161,14 @@ void wifi_start_ssid_config_phase_handle_params()
   ESP.restart();
 }
 
-void wifi_start_ssid_config_phase()
+void init_web_server()
 {
-  web_server.on("/", wifi_start_ssid_config_phase_handle_root);
-  web_server.on("/c", wifi_start_ssid_config_phase_handle_params);
-  web_server.onNotFound(handleNotFound);
+  web_server.on("/", handle_root);
+  web_server.on("/c", handle_config_update_params);
+  web_server.onNotFound(handle_404);
   web_server.begin();
   sched.add_or_update_task((void *)web_server_handle_client_task, 0, NULL, 0, 1, 0);
-  Serial.println("SSID Config HTTP server started");
+  Serial.println("HTTP server started");
 }
 
 void init_wifi()
@@ -160,7 +177,7 @@ void init_wifi()
   {
     // unable to read stored wifi creds, start in AP mode and get wifi config from user
     wifi_start_ap();
-    wifi_start_ssid_config_phase();
+    init_web_server();
   }
   else
   {
