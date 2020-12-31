@@ -19,16 +19,11 @@ void monitor_local_mode_temperature()
         // cold; heat on
         heat_on();
     }
-    else if (diff < -6)
-    {
-        // too hot, only fan on
-        fan_on();
-    }
-    else
+    else if (diff < -2)
     {
         heat_off();
-        // sched.add_or_update_task((void *)fan_off, 100, NULL, 0, 0, MS_FROM_SECONDS(60));
-        fan_off();
+        sched.add_or_update_task((void *)fan_off, 10, NULL, 0, 0, MS_FROM_SECONDS(60));
+        // fan_off();
     }
 }
 
