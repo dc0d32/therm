@@ -99,8 +99,9 @@ void mqtt_update_task(void *)
 
 void send_mqtt_state(const JsonDocument &jdoc)
 {
-  if (therm_state.local_mode)
-    return;
+  // uncomment this if we don't want to send local actions over to MQTT
+  // TODO: look at this more carefully when we move the control to the PI
+  // if (therm_state.local_mode) return;
 
   if (!mqtt_client.connected())
     return;
