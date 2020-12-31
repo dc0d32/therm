@@ -34,7 +34,7 @@ bool fan_off()
 
       therm_state.fan_relay = 0;
       digitalWrite(RELAY_FAN_PIN, LOW);
-      bool was_fan_off_task_removed = sched.remove_task((void *)fan_off, 0);
+      /* bool was_fan_off_task_removed = */ sched.remove_task((void *)fan_off, 0);
       // Serial.println(String("fan turned off. scheduled task removed = ") + was_fan_off_task_removed);
       last_fan_off_ts = millis();
       ret = true;
@@ -71,12 +71,12 @@ bool fan_on()
       therm_state.fan_relay = 1;
       digitalWrite(RELAY_FAN_PIN, HIGH);
       // Serial.println(String("fan turned on. scheduled Off task = ") + was_fan_off_task_added);
-      bool was_fan_off_task_added = sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, MS_FROM_MINUTES(45)); // safety task: fan can't run continuously for too long
+      /* bool was_fan_off_task_added = */ sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, MS_FROM_MINUTES(45)); // safety task: fan can't run continuously for too long
       last_fan_off_ts = -1;                                                                                        // fan is now on, no need to hold on to the last 'off' timestamp
       ret = true;
     }
   }
-  bool was_fan_on_task_removed = sched.remove_task((void *)fan_on, 0);
+  /* bool was_fan_on_task_removed = */ sched.remove_task((void *)fan_on, 0);
   // Serial.println(String("scheduled Fan On task removed = ") + was_fan_on_task_removed);
 
   sched.add_or_update_task((void *)send_mqtt_state_relays, 0, NULL, 0, 0, 100);
@@ -107,8 +107,8 @@ bool heat_off()
     {
       therm_state.heat_relay = 0;
       digitalWrite(RELAY_HEAT_PIN, LOW);
-      bool was_heat_on_task_removed = sched.remove_task((void *)fan_on, 0);
-      bool was_heat_off_task_removed = sched.remove_task((void *)heat_off, 0);
+      /* bool was_heat_on_task_removed = */ sched.remove_task((void *)fan_on, 0);
+      /* bool was_heat_off_task_removed = */ sched.remove_task((void *)heat_off, 0);
       // Serial.println(String("heat turned off. scheduled task removed status: fan on = ") + was_heat_on_task_removed + String(", heat off = ") + was_heat_off_task_removed);
 
       last_heat_off_ts = millis();
@@ -145,8 +145,8 @@ bool heat_on()
     {
       therm_state.heat_relay = 1;
       digitalWrite(RELAY_HEAT_PIN, HIGH);
-      bool was_fan_on_task_added = sched.add_or_update_task((void *)fan_on, 0, NULL, 0, 0, MS_FROM_MINUTES(1));      // safety task: fan must come on few seconds after heat does, even if we don't hear anything from the controller
-      bool was_heat_off_task_added = sched.add_or_update_task((void *)heat_off, 0, NULL, 0, 0, MS_FROM_MINUTES(30)); // safety task: heat can not run for for too long
+      /* bool was_fan_on_task_added = */ sched.add_or_update_task((void *)fan_on, 0, NULL, 0, 0, MS_FROM_MINUTES(1));      // safety task: fan must come on few seconds after heat does, even if we don't hear anything from the controller
+      /* bool was_heat_off_task_added = */ sched.add_or_update_task((void *)heat_off, 0, NULL, 0, 0, MS_FROM_MINUTES(30)); // safety task: heat can not run for for too long
 
       // Serial.println(String("heat turned on. scheduled task added: fan on = ") + was_fan_on_task_added + String(" , heat off = ") + was_heat_off_task_added);
 
