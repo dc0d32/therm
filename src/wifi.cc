@@ -3,6 +3,7 @@
 #include "disp.h"
 
 ESP8266WebServer web_server(80);
+bool web_server_initialized = false;
 ThermConfig therm_conf;
 
 bool is_wifi_connected()
@@ -40,6 +41,7 @@ void wifi_connect()
       return;
     }
     WiFi.disconnect();
+    web_server_initialized = false;
   }
 
   draw_icon_wifi(false);
@@ -169,6 +171,8 @@ void handle_config_update_params()
 
 void init_web_server()
 {
+  if(web_server_initialized) return;
+
   web_server.on("/", handle_root);
   web_server.on("/c", handle_config_update_params);
   web_server.onNotFound(handle_404);
@@ -223,6 +227,7 @@ void init_web_server()
   web_server.begin();
   sched.add_or_update_task((void *)web_server_handle_client_task, 0, NULL, 0, 1, 0);
   Serial.println("HTTP server started");
+  web_server_initialized = true;
 }
 
 void init_wifi()
