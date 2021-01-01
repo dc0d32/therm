@@ -248,6 +248,31 @@ void announce_devices_to_homeassistant()
   }
 
   {
+    // sensor: target temp
+
+    DynamicJsonDocument jdoc(500);
+    String hassio_device = "target_temperature";
+    String unique_id = device_id + "_" + hassio_device;
+    {
+      // device ID. This helps hassio group all the sensors of current esp instance together
+      auto dev_obj = jdoc.createNestedObject("dev");
+      dev_obj["name"] = device_id;
+      dev_obj["mf"] = "Prashant";
+      auto ids_array = dev_obj.createNestedArray("ids");
+      ids_array.add(device_id);
+    }
+    jdoc["name"] = unique_id;                                       // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_target; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                    // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["unit_of_measurement"] = "°F";                             // we measure in F
+    jdoc["device_class"] = "temperature";                           // this is the hassio device class
+    jdoc["value_template"] = "{{value_json['set_temp']}}";          // this is how hassio pulls the value from our overall status message JSON
+
+    auto config_topic = homeassistant_prefix + "/sensor/" + unique_id + "/config";
+    send_mqtt_state(config_topic, jdoc, true);
+  }
+
+  {
     // sensor: presence
 
     DynamicJsonDocument jdoc(500);
