@@ -139,7 +139,7 @@ void handle_config_update_params()
 
   if (!therm_conf.read("/therm.conf"))
   {
-    if (ssid.isEmpty() || pass.isEmpty() || host.isEmpty() || mqtt_server.isEmpty() || mqtt_user.isEmpty())
+    if (ssid.isEmpty() || pass.isEmpty())
     {
       web_server.send(400, "text/html", String("empty input @") + millis());
       return;
