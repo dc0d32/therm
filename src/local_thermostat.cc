@@ -22,8 +22,8 @@ void monitor_local_mode_temperature()
     else if (diff < -2)
     {
         heat_off();
-        sched.add_or_update_task((void *)fan_off, 10, NULL, 0, 0, MS_FROM_SECONDS(60));
-        // fan_off();
+        // sched.add_or_update_task((void *)fan_off, 10, NULL, 0, 0, MS_FROM_SECONDS(60));
+        fan_off();
     }
 }
 
