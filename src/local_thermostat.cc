@@ -14,12 +14,12 @@ void monitor_local_mode_temperature()
 
     float diff = therm_state.tgt_temp - therm_state.cur_temp;
 
-    if (diff > 2)
+    if (diff > 1)
     {
         // cold; heat on
         heat_on();
     }
-    else if (diff < -2)
+    else if (diff < -1)
     {
         heat_off();
         // sched.add_or_update_task((void *)fan_off, 10, NULL, 0, 0, MS_FROM_SECONDS(60));
