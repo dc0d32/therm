@@ -5,7 +5,7 @@
 #include "disp.h"
 #include <ArduinoJson.h>
 
-String stat_topic, cmnd_topic;
+String stat_topic_prefix, cmnd_topic;
 
 const PROGMEM char *topic_component = "therm";
 const PROGMEM char *topic_rl_fan = "rl_fan";
@@ -14,6 +14,11 @@ const PROGMEM char *topic_sw_presence = "sw_presence";
 const PROGMEM char *topic_cur_temp = "cur_temp";
 const PROGMEM char *topic_cur_hum = "cur_hum";
 const PROGMEM char *topic_set_temp = "set_temp";
+
+const PROGMEM char *topic_suffix_relays = "relays";
+const PROGMEM char *topic_suffix_dht11 = "dht11";
+const PROGMEM char *topic_suffix_radar = "presence";
+const PROGMEM char *topic_suffix_target = "setpoint";
 
 WiFiClient mqtt_espClient;
 PubSubClient mqtt_client(mqtt_espClient);
@@ -121,10 +126,12 @@ void send_mqtt_state(const String &topic, const JsonDocument &jdoc, bool retaine
   }
 }
 
+/*
 void send_mqtt_state(const JsonDocument &jdoc, bool retained = false)
 {
-  send_mqtt_state(stat_topic, jdoc, retained);
+  send_mqtt_state(stat_topic_prefix, jdoc, retained);
 }
+*/
 
 void send_mqtt_state_relays()
 {
@@ -133,7 +140,7 @@ void send_mqtt_state_relays()
   jdoc[topic_rl_fan] = (therm_state.fan_relay ? "on" : "off");
   jdoc[topic_rl_heat] = (therm_state.heat_relay ? "on" : "off");
 
-  send_mqtt_state(jdoc);
+  send_mqtt_state(stat_topic_prefix + "/" + topic_suffix_relays, jdoc);
 }
 
 void send_mqtt_state_presence()
@@ -142,7 +149,7 @@ void send_mqtt_state_presence()
 
   jdoc[topic_sw_presence] = (therm_state.presence ? "on" : "off");
 
-  send_mqtt_state(jdoc);
+  send_mqtt_state(stat_topic_prefix + "/" + topic_suffix_radar, jdoc);
 }
 
 void send_mqtt_state_cur_temp()
@@ -164,7 +171,7 @@ void send_mqtt_state_cur_temp()
 
   if (should_send)
   {
-    send_mqtt_state(jdoc);
+    send_mqtt_state(stat_topic_prefix + "/" + topic_suffix_dht11, jdoc);
   }
 }
 
@@ -181,7 +188,7 @@ void send_mqtt_state_target_temp()
 
   if (should_send)
   {
-    send_mqtt_state(jdoc);
+    send_mqtt_state(stat_topic_prefix + "/" + topic_suffix_target, jdoc);
   }
 }
 
@@ -204,12 +211,12 @@ void announce_devices_to_homeassistant()
       auto ids_array = dev_obj.createNestedArray("ids");
       ids_array.add(device_id);
     }
-    jdoc["name"] = unique_id;                              // the name of the sensor that shows up in hassio
-    jdoc["stat_t"] = stat_topic;                           // the stat topic that we publish. This is the one that hassio will start listening to
-    jdoc["uniq_id"] = unique_id;                           // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
-    jdoc["unit_of_measurement"] = "°F";                    // we measure in F
-    jdoc["device_class"] = "temperature";                  // this is the hassio device class
-    jdoc["value_template"] = "{{value_json['cur_temp']}}"; // this is how hassio pulls the value from our overall status message JSON
+    jdoc["name"] = unique_id;                                      // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_dht11; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                   // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["unit_of_measurement"] = "°F";                            // we measure in F
+    jdoc["device_class"] = "temperature";                          // this is the hassio device class
+    jdoc["value_template"] = "{{value_json['cur_temp']}}";         // this is how hassio pulls the value from our overall status message JSON
 
     auto config_topic = homeassistant_prefix + "/sensor/" + unique_id + "/config";
     send_mqtt_state(config_topic, jdoc, true);
@@ -229,12 +236,12 @@ void announce_devices_to_homeassistant()
       auto ids_array = dev_obj.createNestedArray("ids");
       ids_array.add(device_id);
     }
-    jdoc["name"] = unique_id;                             // the name of the sensor that shows up in hassio
-    jdoc["stat_t"] = stat_topic;                          // the stat topic that we publish. This is the one that hassio will start listening to
-    jdoc["uniq_id"] = unique_id;                          // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
-    jdoc["unit_of_measurement"] = "%";                    // we measure in F
-    jdoc["device_class"] = "humidity";                    // this is the hassio device class
-    jdoc["value_template"] = "{{value_json['cur_hum']}}"; // this is how hassio pulls the value from our overall status message JSON
+    jdoc["name"] = unique_id;                                      // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_dht11; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                   // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["unit_of_measurement"] = "%";                             // we measure in F
+    jdoc["device_class"] = "humidity";                             // this is the hassio device class
+    jdoc["value_template"] = "{{value_json['cur_hum']}}";          // this is how hassio pulls the value from our overall status message JSON
 
     auto config_topic = homeassistant_prefix + "/sensor/" + unique_id + "/config";
     send_mqtt_state(config_topic, jdoc, true);
@@ -254,13 +261,13 @@ void announce_devices_to_homeassistant()
       auto ids_array = dev_obj.createNestedArray("ids");
       ids_array.add(device_id);
     }
-    jdoc["name"] = unique_id;                                 // the name of the sensor that shows up in hassio
-    jdoc["stat_t"] = stat_topic;                              // the stat topic that we publish. This is the one that hassio will start listening to
-    jdoc["uniq_id"] = unique_id;                              // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
-    jdoc["device_class"] = "motion";                          // this is the hassio device class
-    jdoc["pl_on"] = "on";                                     // payload that indicates "ON" state
-    jdoc["pl_off"] = "off";                                   // payload that indicates "OFF" state
-    jdoc["value_template"] = "{{value_json['sw_presence']}}"; // this is how hassio pulls the value from our overall status message JSON
+    jdoc["name"] = unique_id;                                      // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_radar; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                   // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["device_class"] = "occupancy";                            // this is the hassio device class
+    jdoc["pl_on"] = "on";                                          // payload that indicates "ON" state
+    jdoc["pl_off"] = "off";                                        // payload that indicates "OFF" state
+    jdoc["value_template"] = "{{value_json['sw_presence']}}";      // this is how hassio pulls the value from our overall status message JSON
 
     auto config_topic = homeassistant_prefix + "/binary_sensor/" + unique_id + "/config";
     send_mqtt_state(config_topic, jdoc, true);
@@ -280,13 +287,13 @@ void announce_devices_to_homeassistant()
       auto ids_array = dev_obj.createNestedArray("ids");
       ids_array.add(device_id);
     }
-    jdoc["name"] = unique_id;                             // the name of the sensor that shows up in hassio
-    jdoc["stat_t"] = stat_topic;                          // the stat topic that we publish. This is the one that hassio will start listening to
-    jdoc["uniq_id"] = unique_id;                          // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
-    jdoc["device_class"] = "heat";                        // this is the hassio device class
-    jdoc["pl_on"] = "on";                                 // payload that indicates "ON" state
-    jdoc["pl_off"] = "off";                               // payload that indicates "OFF" state
-    jdoc["value_template"] = "{{value_json['rl_heat']}}"; // this is how hassio pulls the value from our overall status message JSON
+    jdoc["name"] = unique_id;                                       // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_relays; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                    // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["device_class"] = "heat";                                  // this is the hassio device class
+    jdoc["pl_on"] = "on";                                           // payload that indicates "ON" state
+    jdoc["pl_off"] = "off";                                         // payload that indicates "OFF" state
+    jdoc["value_template"] = "{{value_json['rl_heat']}}";           // this is how hassio pulls the value from our overall status message JSON
 
     auto config_topic = homeassistant_prefix + "/binary_sensor/" + unique_id + "/config";
     send_mqtt_state(config_topic, jdoc, true);
@@ -306,12 +313,12 @@ void announce_devices_to_homeassistant()
       auto ids_array = dev_obj.createNestedArray("ids");
       ids_array.add(device_id);
     }
-    jdoc["name"] = unique_id;                            // the name of the sensor that shows up in hassio
-    jdoc["stat_t"] = stat_topic;                         // the stat topic that we publish. This is the one that hassio will start listening to
-    jdoc["uniq_id"] = unique_id;                         // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
-    jdoc["pl_on"] = "on";                                // payload that indicates "ON" state
-    jdoc["pl_off"] = "off";                              // payload that indicates "OFF" state
-    jdoc["value_template"] = "{{value_json['rl_fan']}}"; // this is how hassio pulls the value from our overall status message JSON
+    jdoc["name"] = unique_id;                                       // the name of the sensor that shows up in hassio
+    jdoc["stat_t"] = stat_topic_prefix + "/" + topic_suffix_relays; // the stat topic that we publish. This is the one that hassio will start listening to
+    jdoc["uniq_id"] = unique_id;                                    // unique ID of the device in hassio. Doesn't get used for anything except as a unique ID
+    jdoc["pl_on"] = "on";                                           // payload that indicates "ON" state
+    jdoc["pl_off"] = "off";                                         // payload that indicates "OFF" state
+    jdoc["value_template"] = "{{value_json['rl_fan']}}";            // this is how hassio pulls the value from our overall status message JSON
 
     auto config_topic = homeassistant_prefix + "/binary_sensor/" + unique_id + "/config";
     send_mqtt_state(config_topic, jdoc, true);
@@ -323,7 +330,7 @@ void init_mqtt()
   String common_mid = topic_component;
   common_mid += "/";
   common_mid += therm_conf.host;
-  stat_topic = "stat/" + common_mid;
+  stat_topic_prefix = "stat/" + common_mid;
   cmnd_topic = "cmnd/" + common_mid;
 
   Serial.println(String("MQTT server: " + therm_conf.mqtt_server));
