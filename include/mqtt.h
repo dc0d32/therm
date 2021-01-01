@@ -7,6 +7,7 @@ void send_mqtt_state_relays();
 void send_mqtt_state_presence();
 void send_mqtt_state_cur_temp();
 void send_mqtt_state_target_temp();
+void announce_devices_to_homeassistant();
 void init_mqtt();
 
 
