@@ -3,7 +3,7 @@
 #include "disp.h"
 
 ESP8266WebServer web_server(80);
-WifiConfig wifi_conf;
+ThermConfig therm_conf;
 
 bool is_wifi_connected()
 {
@@ -31,10 +31,10 @@ void wifi_connect()
 {
   if (WiFi.status() == WL_CONNECTED)
   {
-    if (WiFi.SSID().compareTo(wifi_conf.ssid) == 0)
+    if (WiFi.SSID().compareTo(therm_conf.ssid) == 0)
     {
       init_web_server();
-      Serial.println(String("already connected to WiFi SSID: ") + wifi_conf.ssid);
+      Serial.println(String("already connected to WiFi SSID: ") + therm_conf.ssid);
       draw_icon_wifi(true);
 
       return;
@@ -44,10 +44,10 @@ void wifi_connect()
 
   draw_icon_wifi(false);
 
-  Serial.println(String("attempting to connnect to WiFi SSID: ") + wifi_conf.ssid);
-  WiFi.hostname(wifi_conf.host);
+  Serial.println(String("attempting to connnect to WiFi SSID: ") + therm_conf.ssid);
+  WiFi.hostname(therm_conf.host);
   WiFi.mode(WiFiMode_t::WIFI_STA);
-  WiFi.begin(wifi_conf.ssid, wifi_conf.pass);
+  WiFi.begin(therm_conf.ssid, therm_conf.pass);
   // since we're not sure yet whether connection is successful, we don't set the wifi icon yet. It will be set the next time wifi_connect gets called
 }
 
@@ -137,7 +137,7 @@ void handle_config_update_params()
   auto mqtt_user = web_server.arg("mqtt_user");
   auto mqtt_pass = web_server.arg("mqtt_pass");
 
-  if (!wifi_conf.read("/wifi.conf"))
+  if (!therm_conf.read("/therm.conf"))
   {
     if (ssid.isEmpty() || pass.isEmpty() || host.isEmpty() || mqtt_server.isEmpty() || mqtt_user.isEmpty())
     {
@@ -147,21 +147,21 @@ void handle_config_update_params()
   }
 
   if (!ssid.isEmpty())
-    wifi_conf.ssid = ssid;
+    therm_conf.ssid = ssid;
   if (!pass.isEmpty())
-    wifi_conf.pass = pass;
+    therm_conf.pass = pass;
   if (!host.isEmpty())
-    wifi_conf.host = host;
+    therm_conf.host = host;
   if (!mqtt_server.isEmpty())
-    wifi_conf.mqtt_server = mqtt_server;
+    therm_conf.mqtt_server = mqtt_server;
   if (!mqtt_user.isEmpty())
-    wifi_conf.mqtt_user = mqtt_user;
+    therm_conf.mqtt_user = mqtt_user;
   if (!mqtt_pass.isEmpty())
-    wifi_conf.mqtt_pass = mqtt_pass;
+    therm_conf.mqtt_pass = mqtt_pass;
 
   web_server.send(200, "text/html", String("OK @") + millis());
 
-  wifi_conf.write("/wifi.conf");
+  therm_conf.write("/therm.conf");
   web_server.sendHeader("Connection", "close");
   web_server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
   ESP.restart();
@@ -227,7 +227,7 @@ void init_web_server()
 
 void init_wifi()
 {
-  if (!wifi_conf.read("/wifi.conf"))
+  if (!therm_conf.read("/therm.conf"))
   {
     // unable to read stored wifi creds, start in AP mode and get wifi config from user
     wifi_start_ap();

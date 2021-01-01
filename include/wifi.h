@@ -8,7 +8,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 
-extern WifiConfig wifi_conf;
+extern ThermConfig therm_conf;
 
 
 bool is_wifi_connected();

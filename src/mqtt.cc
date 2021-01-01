@@ -78,7 +78,7 @@ void mqtt_connect()
   if (!mqtt_client.connected())
   {
     Serial.print("Attempting MQTT connection...");
-    if (mqtt_client.connect(wifi_conf.host.c_str(), wifi_conf.mqtt_user.c_str(), wifi_conf.mqtt_pass.c_str()))
+    if (mqtt_client.connect(therm_conf.host.c_str(), therm_conf.mqtt_user.c_str(), therm_conf.mqtt_pass.c_str()))
     {
       Serial.println("connected");
       Serial.println("Subscribe to " + cmnd_topic);
@@ -175,12 +175,12 @@ void init_mqtt()
 {
   String common_mid = topic_component;
   common_mid += "/";
-  common_mid += wifi_conf.host;
+  common_mid += therm_conf.host;
   stat_topic = "stat/" + common_mid;
   cmnd_topic = "cmnd/" + common_mid;
 
-  Serial.println(String("MQTT server: " + wifi_conf.mqtt_server));
-  mqtt_client.setServer(wifi_conf.mqtt_server.c_str(), 1883);
+  Serial.println(String("MQTT server: " + therm_conf.mqtt_server));
+  mqtt_client.setServer(therm_conf.mqtt_server.c_str(), 1883);
 
   sched.add_or_update_task((void *)mqtt_connect, 0, NULL, 0, 30 * 1000, 15000);
   sched.add_or_update_task((void *)mqtt_update_task, 0, NULL, 0, 1, 1000);

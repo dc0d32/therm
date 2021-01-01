@@ -12,18 +12,18 @@ ThermState therm_state;
 ////////////////////////////////////////////////////////////////
 // WIFI config
 
-WifiConfig::WifiConfig() : ssid(""), pass("")
+ThermConfig::ThermConfig() : ssid(""), pass("")
 {
     host = "Therm_";
     host += ESP.getChipId();
 }
-WifiConfig::~WifiConfig()
+ThermConfig::~ThermConfig()
 {
     ssid.clear();
     pass.clear();
 }
 
-bool WifiConfig::read(const char *filePath)
+bool ThermConfig::read(const char *filePath)
 {
     File configFile = LittleFS.open(filePath, "r");
     if (!configFile)
@@ -51,7 +51,7 @@ bool WifiConfig::read(const char *filePath)
     return true;
 }
 
-bool WifiConfig::write(const char *filePath)
+bool ThermConfig::write(const char *filePath)
 {
     File configFile = LittleFS.open(filePath, "w");
     if (!configFile)

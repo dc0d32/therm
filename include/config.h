@@ -31,7 +31,7 @@
 #include <WString.h>
 #include <math.h>
 
-struct WifiConfig
+struct ThermConfig
 {
     String ssid;
     String pass;
@@ -40,8 +40,8 @@ struct WifiConfig
     String mqtt_user;
     String mqtt_pass;
 
-    WifiConfig();
-    ~WifiConfig();
+    ThermConfig();
+    ~ThermConfig();
     
     bool read(const char *filePath);
     bool write(const char *filePath);
@@ -50,7 +50,7 @@ struct WifiConfig
 
 void init_fs();
 
-extern WifiConfig wifi_config;
+extern ThermConfig therm_config;
 
 struct ThermState
 {
