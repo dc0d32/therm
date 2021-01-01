@@ -117,6 +117,10 @@ const char config_form_html[] PROGMEM = R"===(
   MQTT pass: <input type="password" name="mqtt_pass" /> <br />
   <input type="submit" />
 </form>
+<form method='POST' action='/update' enctype='multipart/form-data'>
+  <input type='file' name='update'>
+  <input type='submit' value='Update'>
+</form>
 )===";
 
 void handle_root()
@@ -158,6 +162,8 @@ void handle_config_update_params()
   web_server.send(200, "text/html", String("OK @") + millis());
 
   wifi_conf.write("/wifi.conf");
+  web_server.sendHeader("Connection", "close");
+  web_server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
   ESP.restart();
 }
 
@@ -166,6 +172,54 @@ void init_web_server()
   web_server.on("/", handle_root);
   web_server.on("/c", handle_config_update_params);
   web_server.onNotFound(handle_404);
+  web_server.on(
+      "/update", HTTP_POST,
+      []() { // when the file is fully received
+        ESP.restart();
+      },
+      []() {
+        HTTPUpload &upload = web_server.upload();
+        if (upload.status == UPLOAD_FILE_START)
+        {
+          Serial.setDebugOutput(true);
+          WiFiUDP::stopAll();
+          Serial.printf("Update: %s\n", upload.filename.c_str());
+          uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+          if (!Update.begin(maxSketchSpace))
+          { //start with max available size
+            Update.printError(Serial);
+          }
+        }
+        else if (upload.status == UPLOAD_FILE_WRITE)
+        {
+          if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+          {
+            Update.printError(Serial);
+          }
+          else
+          {
+            for (size_t i = 0; i <= upload.currentSize / 10240; i++)
+            {
+              Serial.write('.');
+            }
+          }
+        }
+        else if (upload.status == UPLOAD_FILE_END)
+        {
+          if (Update.end(true))
+          { //true to set the size to the current progress
+            Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          }
+          else
+          {
+            Update.printError(Serial);
+          }
+          Serial.setDebugOutput(false);
+          web_server.sendHeader("Connection", "close");
+          web_server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        }
+        yield();
+      });
   web_server.begin();
   sched.add_or_update_task((void *)web_server_handle_client_task, 0, NULL, 0, 1, 0);
   Serial.println("HTTP server started");
