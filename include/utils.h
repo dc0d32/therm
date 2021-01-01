@@ -9,5 +9,6 @@
 
 
 void trim_string(String& str);
+String get_chip_id();
 
 #endif //__UTILS_H__

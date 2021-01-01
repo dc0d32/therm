@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <ctype.h>
+#include <Esp.h>
 
 void trim_string(String &str)
 {
@@ -15,4 +16,9 @@ void trim_string(String &str)
         break;
     }
     str.remove(len);
+}
+
+String get_chip_id()
+{
+    return String(ESP.getChipId());
 }

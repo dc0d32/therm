@@ -14,9 +14,9 @@ ThermState therm_state;
 
 ThermConfig::ThermConfig() : ssid(""), pass("")
 {
-    host = "Therm_";
-    host += ESP.getChipId();
+    host = "Therm_" + get_chip_id();
 }
+
 ThermConfig::~ThermConfig()
 {
     ssid.clear();
