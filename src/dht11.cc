@@ -109,7 +109,7 @@ void setup_dht()
     // Initialize device.
     dht_sensor.begin();
 
-    const int temp_read_n_seconds = 10;
+    const int temp_read_n_seconds = 5;
     sched.add_or_update_task((void *)&dht11_sensor_read_task, 0, NULL, 1, MS_FROM_SECONDS(temp_read_n_seconds), 0 /*5000*/);
     sched.add_or_update_task((void *)&dht11_sensor_report_task, 0, NULL, 1, MS_FROM_SECONDS(temp_read_n_seconds), MS_FROM_SECONDS(NUM_SAMPLES_FOR_TEMP_AVG * temp_read_n_seconds));
 }
