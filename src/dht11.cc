@@ -44,8 +44,9 @@ void dht11_sensor_read_task(void *)
         {
             while (dht11_avg_storage.temp_sample_counts >= NUM_SAMPLES_FOR_TEMP_AVG)
             {
-                therm_state.cur_temp = dht11_avg_storage.temp_window_sum / dht11_avg_storage.temp_sample_counts;
-                dht11_avg_storage.temp_window_sum -= therm_state.cur_temp;
+                therm_state.uncal_cur_temp = dht11_avg_storage.temp_window_sum / dht11_avg_storage.temp_sample_counts;
+                dht11_avg_storage.temp_window_sum -= therm_state.uncal_cur_temp;
+                therm_state.cur_temp = therm_state.uncal_cur_temp + therm_conf.calibration_offset_temp;
                 --dht11_avg_storage.temp_sample_counts;
             }
 
@@ -73,8 +74,9 @@ void dht11_sensor_read_task(void *)
         {
             while (dht11_avg_storage.hum_sample_counts >= NUM_SAMPLES_FOR_TEMP_AVG)
             {
-                therm_state.cur_hum = dht11_avg_storage.hum_window_sum / dht11_avg_storage.hum_sample_counts;
-                dht11_avg_storage.hum_window_sum -= therm_state.cur_hum;
+                therm_state.uncal_cur_hum = dht11_avg_storage.hum_window_sum / dht11_avg_storage.hum_sample_counts;
+                dht11_avg_storage.hum_window_sum -= therm_state.uncal_cur_hum;
+                therm_state.cur_hum = therm_state.uncal_cur_hum + therm_conf.calibration_offset_hum;
                 --dht11_avg_storage.hum_sample_counts;
             }
 

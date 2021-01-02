@@ -15,6 +15,8 @@ ThermState therm_state;
 ThermConfig::ThermConfig() : ssid(""), pass("")
 {
     host = "Therm_" + get_chip_id();
+    calibration_offset_temp = 0;
+    calibration_offset_hum = 0;
 }
 
 ThermConfig::~ThermConfig()
@@ -47,6 +49,22 @@ bool ThermConfig::read(const char *filePath)
     mqtt_pass = configFile.readStringUntil('\n');
     trim_string(mqtt_pass);
 
+    {
+        // calibration
+        {
+            // temperature
+            String val_str = configFile.readStringUntil('\n');
+            trim_string(val_str);
+            calibration_offset_temp = val_str.toFloat();
+        }
+
+        {
+            // humidity
+            String val_str = configFile.readStringUntil('\n');
+            trim_string(val_str);
+            calibration_offset_hum = val_str.toFloat();
+        }
+    }
     configFile.close();
     return true;
 }
@@ -72,6 +90,18 @@ bool ThermConfig::write(const char *filePath)
     configFile.write('\n');
     configFile.write(mqtt_pass.c_str(), mqtt_pass.length());
     configFile.write('\n');
+
+    {
+        String val_str = String(calibration_offset_temp);
+        configFile.write(val_str.c_str(), val_str.length());
+        configFile.write('\n');
+    }
+    {
+        String val_str = String(calibration_offset_hum);
+        configFile.write(val_str.c_str(), val_str.length());
+        configFile.write('\n');
+    }
+
     configFile.close();
     return true;
 }
@@ -81,14 +111,13 @@ bool ThermConfig::write(const char *filePath)
 // filesystem
 void init_fs()
 {
-  Serial.println("Mount LittleFS");
-  if (!LittleFS.begin())
-  {
-    Serial.println("Format.");
-    LittleFS.format();
-    Serial.println("Mount newly formatted LittleFS");
-    LittleFS.begin();
-  }
-  Serial.println("LittleFS mounted");
+    Serial.println("Mount LittleFS");
+    if (!LittleFS.begin())
+    {
+        Serial.println("Format.");
+        LittleFS.format();
+        Serial.println("Mount newly formatted LittleFS");
+        LittleFS.begin();
+    }
+    Serial.println("LittleFS mounted");
 }
-

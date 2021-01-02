@@ -107,21 +107,39 @@ void handle_404()
 
 const char config_form_html[] PROGMEM = R"===(
 <form method="GET" action="/c">
+<h1>WiFi</h1>
   SSID: <input type="text" name="ssid" /> <br />
   pass: <input type="password" name="pass" /> <br />
   <input type="submit" />
 </form>
 <form method="GET" action="/c">
+<h1>Host</h1>
   host: <input type="text" name="host" /> <br />
   <input type="submit" />
 </form>
 <form method="GET" action="/c">
+<h1>MQTT</h1>
   MQTT server: <input type="text" name="mqtt_server" /> <br />
   MQTT user: <input type="text" name="mqtt_user" /> <br />
   MQTT pass: <input type="password" name="mqtt_pass" /> <br />
   <input type="submit" />
 </form>
+<form method="GET" action="/c">
+<h1>Calibration</h1>
+  Temperature offset: 
+    <input type="range" min="-20" max="20" step="0.1" name="calibration_offset_temp" 
+      oninput="document.getElementById('lbl_cal_temp').innerHTML = this.value" /> 
+    <label id="lbl_cal_temp" > </label>
+    <br />
+  Humidity offset: 
+    <input type="range" min="-50" max="50" step="0.5" name="calibration_offset_hum" 
+      oninput="document.getElementById('lbl_cal_hum').innerHTML = this.value" /> 
+    <label id="lbl_cal_hum" > </label>
+    <br />
+  <input type="submit" />
+</form>
 <form method='POST' action='/update' enctype='multipart/form-data'>
+Firmware:
   <input type='file' name='update'>
   <input type='submit' value='Update'>
 </form>
@@ -140,6 +158,8 @@ void handle_config_update_params()
   auto mqtt_server = web_server.arg("mqtt_server");
   auto mqtt_user = web_server.arg("mqtt_user");
   auto mqtt_pass = web_server.arg("mqtt_pass");
+  auto calibration_offset_temp = web_server.arg("calibration_offset_temp");
+  auto calibration_offset_hum = web_server.arg("calibration_offset_hum");
 
   if (!therm_conf.read("/therm.conf"))
   {
@@ -162,18 +182,21 @@ void handle_config_update_params()
     therm_conf.mqtt_user = mqtt_user;
   if (!mqtt_pass.isEmpty())
     therm_conf.mqtt_pass = mqtt_pass;
-
-  web_server.send(200, "text/html", String("OK @") + millis());
+  if (!calibration_offset_temp.isEmpty())
+    therm_conf.calibration_offset_temp = calibration_offset_temp.toFloat();
+  if (!calibration_offset_hum.isEmpty())
+    therm_conf.calibration_offset_hum = calibration_offset_hum.toFloat();
 
   therm_conf.write("/therm.conf");
   web_server.sendHeader("Connection", "close");
-  web_server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+  web_server.send(200, "text/plain", String((Update.hasError()) ? "FAIL @" : "OK @") + millis());
   ESP.restart();
 }
 
 void init_web_server()
 {
-  if(web_server_initialized) return;
+  if (web_server_initialized)
+    return;
 
   web_server.on("/", handle_root);
   web_server.on("/c", handle_config_update_params);

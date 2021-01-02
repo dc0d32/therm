@@ -33,36 +33,41 @@
 
 struct ThermConfig
 {
-    String ssid;
-    String pass;
-    String host;
-    String mqtt_server;
-    String mqtt_user;
-    String mqtt_pass;
+  String ssid;
+  String pass;
+  String host;
+  String mqtt_server;
+  String mqtt_user;
+  String mqtt_pass;
+  float calibration_offset_temp, calibration_offset_hum;
 
-    ThermConfig();
-    ~ThermConfig();
-    
-    bool read(const char *filePath);
-    bool write(const char *filePath);
+  ThermConfig();
+  ~ThermConfig();
 
+  bool read(const char *filePath);
+  bool write(const char *filePath);
 };
 
 void init_fs();
 
-extern ThermConfig therm_config;
+extern ThermConfig therm_conf;
 
 struct ThermState
 {
   uint8 fan_relay = 0, heat_relay = 0;
   uint8 presence = 0;
-  float cur_temp = NAN, cur_hum = NAN, tgt_temp = NAN, last_reported_temp = NAN, last_reported_hum = NAN;
+  float
+      cur_temp = NAN,           // current temperature (calibrated)
+      cur_hum = NAN,            // current humidity(calibrated)
+      uncal_cur_temp = NAN,     // current temperature (uncalibrated, do not use directly)
+      uncal_cur_hum = NAN,      // current humidity(uncalibrated, do not use directly)
+      tgt_temp = NAN,           // target temp. Can be either received from pi, or from local mode
+      last_reported_temp = NAN, // to not spam MQTT for very tiny changes
+      last_reported_hum = NAN;  // to not spam MQTT for very tiny changes
   uint64 last_reported_ts = 0;
   uint8 local_mode = 0;
 };
 
 extern ThermState therm_state;
-
-
 
 #endif
