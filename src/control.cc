@@ -71,8 +71,9 @@ bool fan_on()
       therm_state.fan_relay = 1;
       digitalWrite(RELAY_FAN_PIN, HIGH);
       // Serial.println(String("fan turned on. scheduled Off task = ") + was_fan_off_task_added);
-      /* bool was_fan_off_task_added = */ sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, MS_FROM_MINUTES(45)); // safety task: fan can't run continuously for too long
-      last_fan_off_ts = -1;                                                                                        // fan is now on, no need to hold on to the last 'off' timestamp
+      /* bool was_fan_off_task_added = */ sched.add_or_update_task((void *)fan_off, 0, NULL, 0, 0, MS_FROM_MINUTES(120)); // safety task: fan can't run continuously for too long
+      // fan is now on, no need to hold on to the last 'off' timestamp
+      last_fan_off_ts = -1;
       ret = true;
     }
   }
