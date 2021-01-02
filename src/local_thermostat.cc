@@ -7,8 +7,8 @@
 
 #include <bitset>
 
-#define CIRCULATION_FAN_HISTORY_SIZE_IN_MIN 64
-#define CIRCULATION_MIN 24
+#define CIRCULATION_FAN_HISTORY_SIZE_IN_MIN 60
+#define CIRCULATION_MIN 30
 std::bitset<CIRCULATION_FAN_HISTORY_SIZE_IN_MIN> fan_state_history;
 short fan_state_history_ptr = 0;
 int64_t last_circ_fan_on_ts = -1;
