@@ -81,6 +81,8 @@ void init_mdns()
     Serial.println("MDNS responder started");
   }
 
+  MDNS.addService("http", "tcp", 80);
+
   sched.add_or_update_task((void *)mdns_update_task, 0, NULL, 2, 1, 0);
 }
 
