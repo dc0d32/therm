@@ -13,6 +13,9 @@ bool fan_off()
 {
   // Serial.println("fan off called");
 
+  if (!therm_conf.relays_available)
+    return false;
+
   bool ret = false;
   if (!therm_state.fan_relay)
   {
@@ -48,6 +51,8 @@ bool fan_off()
 bool fan_on()
 {
   // Serial.println("fan on called");
+  if (!therm_conf.relays_available)
+    return false;
 
   bool ret = false;
 
@@ -89,6 +94,9 @@ int64_t last_heat_off_ts = -1, last_heat_on_ts = -1;
 bool heat_off()
 {
   // Serial.println("heat off called");
+  if (!therm_conf.relays_available)
+    return false;
+
   bool ret = false;
   if (!therm_state.heat_relay)
   {
@@ -125,6 +133,9 @@ bool heat_off()
 bool heat_on()
 {
   // Serial.println("heat on called");
+  if (!therm_conf.relays_available)
+    return false;
+
   bool ret = false;
 
   if (therm_state.heat_relay)

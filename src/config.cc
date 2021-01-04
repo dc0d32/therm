@@ -17,6 +17,7 @@ ThermConfig::ThermConfig() : ssid(""), pass("")
     host = "Therm_" + get_chip_id();
     calibration_offset_temp = 0;
     calibration_offset_hum = 0;
+    relays_available = false;
 }
 
 ThermConfig::~ThermConfig()
@@ -65,6 +66,13 @@ bool ThermConfig::read(const char *filePath)
             calibration_offset_hum = val_str.toFloat();
         }
     }
+
+    {
+        String val_str = configFile.readStringUntil('\n');
+        trim_string(val_str);
+        relays_available = val_str.toInt();
+    }
+    
     configFile.close();
     return true;
 }
@@ -101,6 +109,9 @@ bool ThermConfig::write(const char *filePath)
         configFile.write(val_str.c_str(), val_str.length());
         configFile.write('\n');
     }
+
+    configFile.write(relays_available ? "1" : "0", 1);
+    configFile.write('\n');
 
     configFile.close();
     return true;

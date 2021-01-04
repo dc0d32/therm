@@ -46,6 +46,7 @@ struct ThermConfig
   String mqtt_user;
   String mqtt_pass;
   float calibration_offset_temp, calibration_offset_hum;
+  bool relays_available;
 
   ThermConfig();
   ~ThermConfig();

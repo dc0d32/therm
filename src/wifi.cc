@@ -125,6 +125,15 @@ const char config_form_html[] PROGMEM = R"===(
   <input type="submit" />
 </form>
 <form method="GET" action="/c">
+<h1>Thermostat</h1>
+  <p>Has Relays attached?</p>
+  <input type="radio" id="relays_available" name="relays_available" value="1">
+  <label for="relays_available">Yes, relays available</label><br>
+  <input type="radio" id="relays_not_available" name="relays_available" value="0" checked>
+  <label for="relays_not_available">No, satellite unit</label><br>
+  <input type="submit" />
+</form>
+<form method="GET" action="/c">
 <h1>Calibration</h1>
   Temperature offset: 
     <input type="range" min="-20" max="20" step="0.1" name="calibration_offset_temp" 
@@ -160,6 +169,7 @@ void handle_config_update_params()
   auto mqtt_pass = web_server.arg("mqtt_pass");
   auto calibration_offset_temp = web_server.arg("calibration_offset_temp");
   auto calibration_offset_hum = web_server.arg("calibration_offset_hum");
+  auto relays_available = web_server.arg("relays_available");
 
   if (!therm_conf.read("/therm.conf"))
   {
@@ -186,10 +196,14 @@ void handle_config_update_params()
     therm_conf.calibration_offset_temp = calibration_offset_temp.toFloat();
   if (!calibration_offset_hum.isEmpty())
     therm_conf.calibration_offset_hum = calibration_offset_hum.toFloat();
+  if (!relays_available.isEmpty())
+    therm_conf.relays_available = relays_available.toInt();
 
   therm_conf.write("/therm.conf");
   web_server.sendHeader("Connection", "close");
   web_server.send(200, "text/plain", String((Update.hasError()) ? "FAIL @" : "OK @") + millis());
+  web_server.close();
+  delay(1000);
   ESP.restart();
 }
 
