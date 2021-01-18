@@ -8,7 +8,9 @@
 #include <bitset>
 
 #define CIRCULATION_FAN_HISTORY_SIZE_IN_MIN 60
+// we will try to keep the fan on for CIRCULATION_MIN out of last CIRCULATION_FAN_HISTORY_SIZE_IN_MIN
 #define CIRCULATION_MIN 30
+
 std::bitset<CIRCULATION_FAN_HISTORY_SIZE_IN_MIN> fan_state_history;
 short fan_state_history_ptr = 0;
 int64_t last_circ_fan_on_ts = -1;
@@ -92,7 +94,18 @@ void enable_local_thermostat()
     fan_state_history.reset();
     fan_state_history_ptr = 0;
     last_circ_fan_on_ts = -1;
-    sched.add_or_update_task((void *)circulation_watcher_task, 0, NULL, 0, MS_FROM_MINUTES(1), 0);
+
+    // FIXME: this is disabled for now during winter, can be enabled during summer
+    // reason for disabling: if the fan runs without heat, the heat exchanger is effectively the coldest part
+    // of the HVAC loop, and it accumulates condensation. Condensation = rust; lower life of furnace, carbon monoxide risk.
+    // The rust/evaporating water on iron what I was smelling when the heat kicked in since enabling circulation.
+    // Hence disabled during winter.
+    // Ideal fix: replace the inaccurate DHT11 by something more reliable,
+    // then check if the current internal moisture at internal temp will result in condensation
+    // on the heat exchanger by looking at outside temperature; and enable circulation mode automatically.
+    // Look into the dew point calculation. Could compare that with the external temp.
+
+    // sched.add_or_update_task((void *)circulation_watcher_task, 0, NULL, 0, MS_FROM_MINUTES(1), 0);
 }
 
 void disable_local_thermostat()
