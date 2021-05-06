@@ -72,7 +72,7 @@ void monitor_local_mode_temperature()
     {
         heat_off();
         // sched.add_or_update_task((void *)fan_off, 10, NULL, 0, 0, MS_FROM_SECONDS(60));
-        // fan_off();
+        fan_off(); // FIXME: comment this out when we enable circulation mode again
     }
 }
 
